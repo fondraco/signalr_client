@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:logging/logging.dart';
-import 'package:sse_channel/sse_channel.dart';
+import 'package:signalr_netcore/sse_channel/src/channel.dart';
 
 import 'errors.dart';
 import 'itransport.dart';
@@ -16,6 +16,7 @@ class ServerSentEventsTransport implements ITransport {
   final Logger? _logger;
   final bool _logMessageContent;
   SseChannel? _sseClient;
+  StreamSubscription? _sseStreamSubscription;
   String? _url;
 
   @override
@@ -38,15 +39,19 @@ class ServerSentEventsTransport implements ITransport {
   @override
   Future<void> connect(String? url, TransferFormat transferFormat) async {
     assert(!isStringEmpty(url));
+
     _logger?.finest("(SSE transport) Connecting");
 
-    // set url before accessTokenFactory because this.url is only for send and we set the auth header instead of the query string for send
+    // set url before accessTokenFactory because this.url is only for send and
+    // we set the auth header instead of the query string for send
     _url = url;
 
     if (_accessTokenFactory != null) {
       final token = await _accessTokenFactory!();
+
       if (!isStringEmpty(token)) {
         final encodedToken = Uri.encodeComponent(token);
+
         url = url! +
             (url.indexOf("?") < 0 ? "?" : "&") +
             "access_token=$encodedToken";
@@ -54,12 +59,18 @@ class ServerSentEventsTransport implements ITransport {
     }
 
     var opened = false;
+
     if (transferFormat != TransferFormat.Text) {
-      return Future.error(GeneralError(
-          "The Server-Sent Events transport only supports the 'Text' transfer format"));
+      return Future.error(
+        GeneralError(
+          "The Server-Sent Events transport only "
+          "supports the 'Text' transfer format",
+        ),
+      );
     }
 
     SseChannel client;
+
     try {
       client = SseChannel.connect(Uri.parse(url!));
       _logger?.finer('(SSE transport) connected to $url');
@@ -69,23 +80,27 @@ class ServerSentEventsTransport implements ITransport {
       return Future.error(e);
     }
 
-    _sseClient!.stream.listen((data) {
-      if (onReceive != null) {
-        try {
-          _logger?.finest(
-              '(SSE transport) data received. ${getDataDetail(data, _logMessageContent)}.');
-          onReceive!(data);
-        } catch (error) {
-          _close(error: error);
-          return;
+    _sseStreamSubscription = _sseClient!.stream.listen(
+      (data) {
+        if (onReceive != null) {
+          try {
+            _logger?.finest(
+                '(SSE transport) data received. ${getDataDetail(data, _logMessageContent)}.');
+            onReceive!(data);
+          } catch (error) {
+            _close(error: error);
+            return;
+          }
         }
-      }
-    }, onError: (e) {
-      _logger?.severe('(SSE transport) error when listening to stream: $e');
-      if (opened) {
-        _close(error: e);
-      }
-    });
+      },
+      onError: (e) {
+        _logger?.severe('(SSE transport) error when listening to stream: $e');
+
+        if (opened) {
+          _close(error: e);
+        }
+      },
+    );
   }
 
   @override
@@ -107,12 +122,16 @@ class ServerSentEventsTransport implements ITransport {
 
   @override
   Future<void> stop() {
+    _logger?.finest("(SSE transport) Disconnecting");
+
     _close();
+
     return Future.value(null);
   }
 
   _close({dynamic error}) {
     if (_sseClient != null) {
+      _sseStreamSubscription?.cancel();
       _sseClient = null;
 
       if (onClose != null) {
