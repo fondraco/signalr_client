@@ -65,7 +65,7 @@ typedef OnReceive = void Function(Object? data);
 ///
 typedef OnClose = void Function({Exception? error});
 
-typedef AccessTokenFactory = Future<String> Function();
+typedef AccessTokenFactory = Future<String?> Function();
 
 /// An abstraction over the behavior of transports. This is designed to support the framework and not intended for use by applications.
 abstract class ITransport {
