@@ -174,11 +174,11 @@ class HubConnection {
 
       _connectionState = HubConnectionState.Connected;
       _connectionStarted = true;
-      _logger?.finer("HubConnection connected successfully.");
+      _logger?.finer("Connected successfully.");
     } catch (e) {
       _connectionState = HubConnectionState.Disconnected;
       _logger?.finer(
-          "HubConnection failed to start successfully because of error '$e'.");
+          "Failed to start successfully because of error '$e'.");
       return Future.error(e);
     }
   }
@@ -679,8 +679,11 @@ class HubConnection {
   }
 
   void _connectionClosed({Exception? error}) {
-    _logger?.finer(
-        "HubConnection.connectionClosed($error) called while in state $_connectionState.");
+    if (error != null) {
+      _logger?.finer(
+        "HubConnection.connectionClosed($error) called while in state $_connectionState.",
+      );
+    }
 
     // Triggering this.handshakeRejecter is insufficient because it could already be resolved without the continuation having run yet.
     _stopDuringStartError = _stopDuringStartError ??

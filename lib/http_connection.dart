@@ -199,6 +199,7 @@ class HttpConnection implements IConnection {
   static final maxRedirects = 100;
 
   ConnectionState? _connectionState;
+
   // connectionStarted is tracked independently from connectionState, so we can check if the
   // connection ever did successfully transition from connecting to connected before disconnecting.
   late bool _connectionStarted;
@@ -610,8 +611,10 @@ class HttpConnection implements IConnection {
   }
 
   void _stopConnection({Exception? error}) {
-    _logger?.finer(
-        "HttpConnection.stopConnection(${error ?? "Unknown"}) called while in state $_connectionState.");
+    if (error != null) {
+      _logger?.finer(
+          "HttpConnection.stopConnection(${error}) called while in state $_connectionState.");
+    }
 
     _transport = null;
 
@@ -639,9 +642,9 @@ class HttpConnection implements IConnection {
     }
 
     if (error != null) {
-      _logger?.severe("Connection disconnected with error '$error'.");
+      _logger?.severe("Disconnected with error '$error'.");
     } else {
-      _logger?.info("Connection disconnected.");
+      _logger?.info("Disconnected.");
     }
 
     if (_sendQueue != null) {
